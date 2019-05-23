@@ -5,13 +5,22 @@ import basic_service
 import threading
 import logging
 import sys
-RED_PIN = 11 # Pin 21 is GPIO 9
-GREEN_PIN = 12
-YELLOW_PIN = 13
 
-GREEN_TIME = 5
+RED_PIN_SEM1 = 11 # Pin 21 is GPIO 9
+GREEN_PIN_SEM1 = 12
+YELLOW_PIN_SEM1 = 13
+
+RED_PIN_SEM2 = 15
+GREEN_PIN_SEM2 = 22
+YELLOW_PIN_SEM2 = 18
+
+RED_PIN = [11,15]
+GREEN_PIN = [12,22]
+YELLOW_PIN = [13,18]
+
+GREEN_TIME = 2.4
 YELLOW_TIME = 2
-RED_TIME = 4
+RED_TIME = 5
 
 
 def main():
@@ -45,51 +54,66 @@ class semaphore_mgmt(threading.Thread):
 		threading.Thread.__init__(self)
 		self.kill_received = False
 		GPIO.setmode(GPIO.BOARD) # used board numbers
-		GPIO.setup(RED_PIN,GPIO.OUT) # Out pin
-		GPIO.setup(GREEN_PIN,GPIO.OUT) # Out pin
-		GPIO.setup(YELLOW_PIN,GPIO.OUT) # Out pin
+		GPIO.setup(RED_PIN_SEM1,GPIO.OUT) # Out pin
+		GPIO.setup(GREEN_PIN_SEM1,GPIO.OUT) # Out pin
+		GPIO.setup(YELLOW_PIN_SEM1,GPIO.OUT) # Out pin
 
-	def turn_on_green(self):
-		GPIO.output(YELLOW_PIN,GPIO.LOW)
-		GPIO.output(RED_PIN,GPIO.LOW)
-		GPIO.output(GREEN_PIN,GPIO.HIGH) # Led on
+		GPIO.setup(RED_PIN_SEM2,GPIO.OUT) # Out pin
+		GPIO.setup(GREEN_PIN_SEM2,GPIO.OUT) # Out pin
+		GPIO.setup(YELLOW_PIN_SEM2,GPIO.OUT) # Out pin
 
-	def turn_on_yellow(self):
-		GPIO.output(GREEN_PIN,GPIO.LOW)
-		GPIO.output(RED_PIN,GPIO.LOW)
-		GPIO.output(YELLOW_PIN,GPIO.HIGH) # Led on
+	def turn_on_green(self,num_sem):
+		GPIO.output(YELLOW_PIN[num_sem-1],GPIO.LOW)
+		GPIO.output(RED_PIN[num_sem-1],GPIO.LOW)
+		GPIO.output(GREEN_PIN[num_sem-1],GPIO.HIGH) # Led on
 
-	def turn_on_red(self):
-		GPIO.output(YELLOW_PIN,GPIO.LOW)
-		GPIO.output(GREEN_PIN,GPIO.LOW)
-		GPIO.output(RED_PIN,GPIO.HIGH) # Led on
+	def turn_on_yellow(self,num_sem):
+		GPIO.output(GREEN_PIN[num_sem-1],GPIO.LOW)
+		GPIO.output(RED_PIN[num_sem-1],GPIO.LOW)
+		GPIO.output(YELLOW_PIN[num_sem-1],GPIO.HIGH) # Led on
 
-	def turn_off_all(self):
-		GPIO.output(YELLOW_PIN,GPIO.LOW)
-		GPIO.output(GREEN_PIN,GPIO.LOW)
-		GPIO.output(RED_PIN,GPIO.LOW)
+	def turn_on_red(self,num_sem):
+		GPIO.output(YELLOW_PIN[num_sem-1],GPIO.LOW)
+		GPIO.output(GREEN_PIN[num_sem-1],GPIO.LOW)
+		GPIO.output(RED_PIN[num_sem-1],GPIO.HIGH) # Led on
 
-	def turn_on_all(self):
-		GPIO.output(YELLOW_PIN,GPIO.HIGH)
-		GPIO.output(GREEN_PIN,GPIO.HIGH)
-		GPIO.output(RED_PIN,GPIO.HIGH)
+	def turn_off_all(self,num_sem):
+		GPIO.output(YELLOW_PIN[num_sem-1],GPIO.LOW)
+		GPIO.output(GREEN_PIN[num_sem-1],GPIO.LOW)
+		GPIO.output(RED_PIN[num_sem-1],GPIO.LOW)
+
+	def turn_on_all(self,num_sem):
+		GPIO.output(YELLOW_PIN[num_sem-1],GPIO.HIGH)
+		GPIO.output(GREEN_PIN[num_sem-1],GPIO.HIGH)
+		GPIO.output(RED_PIN[num_sem-1],GPIO.HIGH)
 
 	def run(self):
 		global bs
 		while self.kill_received == False:
 			logging.debug("New semaphore_mgmt thread created")
-			self.turn_on_green()
+			self.turn_on_red(2)
+			sleep(1)
+			self.turn_on_green(1)
 			bs.send_light("green")
+
+			
 			sleep(GREEN_TIME) # Wait
 
-			self.turn_on_yellow()
+			self.turn_on_yellow(1)
 			bs.send_light("yellow")
 			sleep(YELLOW_TIME) # Wait
 
-			self.turn_on_red()
+			self.turn_on_red(1)
 			bs.send_light("red")
-			sleep(RED_TIME) # Wait
-		self.turn_off_all()
+
+			sleep(1)
+			self.turn_on_green(2)
+			sleep(RED_TIME-YELLOW_TIME) # Wait
+			self.turn_on_yellow(2)
+			sleep(YELLOW_TIME)
+
+		self.turn_off_all(1)
+		self.turn_off_all(2)
 		GPIO.cleanup()
 
 class bs_thread(threading.Thread):
