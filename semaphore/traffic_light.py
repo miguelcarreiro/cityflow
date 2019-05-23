@@ -37,6 +37,8 @@ def main():
 	bs.start()
 	sem = semaphore_mgmt()
 	sem.start()
+
+
 	while sem.isAlive():
 		try:
 			# synchronization timeout of threads kill
@@ -123,10 +125,15 @@ class bs_thread(threading.Thread):
 		self.kill_received = False
 
 	def run(self):
-		basic_service.main()
+		basic_service.start_beacon("output_test_estacionar.txt")
+		# Start timer thread, that will remove deprecated records
+		timer = basic_service.Timer()
+		timer.start()
+		listen = basic_service.Listen()
+		listen.start()
 
 	def send_light(self, light_color):
-		print("entrei no send_light do traffic light - cor " + light_color)
+		#print("entrei no send_light do traffic light - cor " + light_color)
 		bs_send_light = basic_service.sendLight(light_color)
 		bs_send_light.start()
 		

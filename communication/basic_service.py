@@ -33,31 +33,6 @@ msgID = 1
 
 color = ""
 
-
-# def main(file_name=""):
-# 	if "-l" in sys.argv[1:]:
-# 		# If test mode is activated, log will appear in terminal
-# 		logging.basicConfig(level=logging.DEBUG)
-# 	else:
-# 		# If not, log will not appear in terminal
-# 		 logging.basicConfig(level=logging.WARNING)
-# 	logging.debug("Program initialization done")
-# 	start_beacon(file_name)
-# 	# Start timer thread, that will remove deprecated records
-# 	timer = Timer()
-# 	timer.start()
-# 	listen = Listen()
-# 	listen.start()
-	
-# 	while listen.isAlive():
-# 		try:
-# 			# synchronization timeout of threads kill
-# 			listen.join(1)
-# 		except KeyboardInterrupt:
-# 			# Ctrl-C handling and send kill to threads
-# 			logging.debug("Sending kill to thread listen")
-# 			listen.kill_received = True
-
 def start_beacon(file_name):
 	if file_name != "":
 		send_data = openFile(file_name)
@@ -151,7 +126,7 @@ def tableUpdate(msg, nodeID):
 			logging.debug("Released lock in neighbor table")
 			#print("Updated list: " + str(table_neighbor))
 	else:
-		print("Message received: " + str(msg))
+		#print("Message received: " + str(msg))
 		global color
 		color = msg[1]
 
@@ -166,6 +141,7 @@ class Timer(threading.Thread):
 		while True:
 			time.sleep(2)
 			logging.debug("Verifying timeout")
+			print("Table neighbor:\n" + str(table_neighbor))
 			for key in table_neighbor.keys():
 				logging.debug("Key timeout analysis: " + str(table_neighbor[key][1]))
 				if table_neighbor[key][1] < time.time()-5.0:
@@ -248,3 +224,5 @@ def openFile(file_name):
 			gps_data.append(line_filter[:-2])
 	logging.debug("GPS data ready to send")
 	return gps_data
+
+def getCars():
