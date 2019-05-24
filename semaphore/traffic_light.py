@@ -22,11 +22,20 @@ GREEN_TIME = 2.4
 YELLOW_TIME = 2
 RED_TIME = 5
 
+UNIQUE_ID = None
+
 
 def main():
+	global UNIQUE_ID
 	if "-l" in sys.argv[1:]:
 		# If test mode is activated, log will appear in terminal
 		logging.basicConfig(level=logging.DEBUG)
+	
+
+	if "-i" in sys.argv[1:]:
+		pos = sys.argv.index("-i")+1
+		UNIQUE_ID = int(sys.argv[pos])
+
 	else:
 		# If not, log will not appear in terminal
 		 logging.basicConfig(level=logging.WARNING)
@@ -125,18 +134,19 @@ class bs_thread(threading.Thread):
 		self.kill_received = False
 
 	def run(self):
+		global UNIQUE_ID
 		basic_service.start_beacon("output_test_estacionar.txt")
 		# Start timer thread, that will remove deprecated records
 		timer = basic_service.Timer()
 		timer.start()
 		listen = basic_service.Listen()
 		listen.start()
+		basic_service.DEVICE_TYPE = UNIQUE_ID 
 
 	def send_light(self, light_color):
 		#print("entrei no send_light do traffic light - cor " + light_color)
 		bs_send_light = basic_service.sendLight(light_color)
 		bs_send_light.start()
-		
 
 
 if __name__ == '__main__':

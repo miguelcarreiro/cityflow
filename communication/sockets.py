@@ -82,6 +82,5 @@ def rcvMessage(socket):
 
     return [rec_data, sender]
 
-
 if __name__ == '__main__':
     main()

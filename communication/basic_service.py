@@ -19,15 +19,18 @@ import string
 import sockets # a Python code
 import threading
 import logging
+import csv
 
 
 #Startup
 client_thread = []
-table_neighbor={} 
+table_neighbor={}
 lock = threading.Semaphore()
 lock_msg = threading.Semaphore()
 rcvSocket = sockets.receiverInit()
 sndSocket = sockets.senderInit()
+DEVICE_TYPE = None
+
 
 msgID = 1
 
@@ -35,7 +38,8 @@ color = ""
 
 def start_beacon(file_name):
 	if file_name != "":
-		send_data = openFile(file_name)
+		send_data = openGpsFile(file_name)
+		openConfigFile('config.csv')
 		beacon = sendInfo(send_data)
 		beacon.start()
 
@@ -98,11 +102,13 @@ def tableUpdate(msg, nodeID):
 		speed = msg[5]
 		true_course = msg[6]
 		date = msg[7]
+
+
 		timestamp = time.time()
 
 		if nodeID in table_neighbor:  # means that the table already has that node
 			logging.debug("Node ID already in table")
-			if int(table_neighbor[nodeID][0]) < int(msgIDrcv): 
+			if int(table_neighbor[nodeID][0]) < int(msgIDrcv):
 				# valid message id
 				lock.acquire()
 				logging.debug("Acquired lock in neighbor table")
@@ -117,6 +123,8 @@ def tableUpdate(msg, nodeID):
 		else:
 			logging.debug("Node ID not in table")
 			# else we need to add it to the table
+
+
 			lock.acquire()
 			logging.debug("Acquired lock in neighbor table")
 			flag = 1
@@ -125,12 +133,22 @@ def tableUpdate(msg, nodeID):
 			lock.release()
 			logging.debug("Released lock in neighbor table")
 			#print("Updated list: " + str(table_neighbor))
-	else:
-		#print("Message received: " + str(msg))
-		global color
-		color = msg[1]
 
 
+	elif msgType == "den":
+		print("Message received: " + str(msg))
+		unique_id = int(msg[-1])
+		if DEVICE_TYPE != unique_id:
+			if DEVICE_TYPE > 20: # sou um carro
+				if unique_id < 11: # RECEBI DE UM SEMÁFORO
+					#verificar se é o semáforo mais perto de mim
+					#se for...
+					global color
+					color = msg[1]
+			else: #sou um semáforo
+				if unique_id > 20: # recebi de um semáforo
+					#contar número de carros
+					print("coiso")
 
 class Timer(threading.Thread):
 	def __init__(self):
@@ -162,6 +180,7 @@ class sendInfo(threading.Thread):
 
 	def run(self):
 		global msgID
+		global DEVICE_TYPE
 		count = 0
 		while True:
 			if count < 10:
@@ -169,7 +188,7 @@ class sendInfo(threading.Thread):
 				logging.debug("Sending beacon")
 
 				for i in self.gps_file:
-					finalMsg = str("beacon")+"|"+str(msgID)+"|"+str(i)
+					finalMsg = str("beacon")+"|"+str(msgID)+"|"+str(i)+"|"+str(DEVICE_TYPE)
 
 					lock_msg.acquire()
 					sockets.sendMessage(finalMsg, sndSocket)
@@ -201,7 +220,7 @@ class sendLight(threading.Thread):
 
 	def run(self):
 		global msgID
-		finalMsg = str("den")+"|"+str(self.light_color)
+		finalMsg = str("den")+"|"+str(self.light_color)+"|"+str(DEVICE_TYPE)
 		#print("\nMensagem a ser enviada: " + finalMsg + "\n")
 		lock_msg.acquire()
 		sockets.sendMessage(finalMsg, sndSocket)
@@ -210,7 +229,7 @@ class sendLight(threading.Thread):
 		msgID = msgID + 1
 
 
-def openFile(file_name):
+def openGpsFile(file_name):
 	gps_data=[]
 	file = open(file_name,"r")
 	logging.debug("GPS data ready to send")
@@ -224,3 +243,16 @@ def openFile(file_name):
 			gps_data.append(line_filter[:-2])
 	logging.debug("GPS data ready to send")
 	return gps_data
+
+def openConfigFile(file_name):
+	device_list = []
+	file = open(file_name, "r")
+	logging.debug("Config data ready to import")
+	csv_reader = csv.reader(file, delimiter='|')
+
+	for row in csv_reader:
+		device_list.append([row])
+
+	return device_list
+
+#def getCars():

@@ -15,12 +15,18 @@ MAX_FORWARD_SPEED = 100
 MAX_BACKWARD_SPEED = 100
 SLEEP_TIME = 2
 
+UNIQUE_ID = None
 current_color =""
 
 def main():
     if "-l" in sys.argv[1:]:
         # If test mode is activated, log will appear in terminal
         logging.basicConfig(level=logging.DEBUG)
+
+    if "-i" in sys.argv[1:]:
+        pos = sys.argv.index("-i")+1
+        UNIQUE_ID = int(sys.argv[pos])
+
     else:
         # If not, log will not appear in terminal
          logging.basicConfig(level=logging.WARNING)
@@ -123,6 +129,7 @@ class bs_thread(threading.Thread):
         self.gpio_data = gpio_data
 
     def run(self):
+        basic_service.DEVICE_TYPE = UNIQUE_ID
         while True:
             self.rcv_light(gpio_data)
 
