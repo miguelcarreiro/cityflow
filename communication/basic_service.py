@@ -75,7 +75,7 @@ class Handler(threading.Thread):
 			exit(-1, "Empty message!")
 
 		else:
-			nodeID = self.clientIP[0]
+			nodeID = self.clientIP[0][:-6]
 			logging.debug("Node ID: " + nodeID)
 			#print("Message received: " + msg_str)
 			tableUpdate(msg, nodeID)
@@ -224,5 +224,3 @@ def openFile(file_name):
 			gps_data.append(line_filter[:-2])
 	logging.debug("GPS data ready to send")
 	return gps_data
-
-def getCars():
