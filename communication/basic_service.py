@@ -29,7 +29,9 @@ lock = threading.Semaphore()
 lock_msg = threading.Semaphore()
 rcvSocket = sockets.receiverInit()
 sndSocket = sockets.senderInit()
-DEVICE_TYPE = None
+DEVICE_TYPE = None #1-10 traffic light  >20 car
+
+num_cars = 0
 
 
 msgID = 1
@@ -39,7 +41,6 @@ color = ""
 def start_beacon(file_name):
 	if file_name != "":
 		send_data = openGpsFile(file_name)
-		openConfigFile('config.csv')
 		beacon = sendInfo(send_data)
 		beacon.start()
 
@@ -85,10 +86,14 @@ class Handler(threading.Thread):
 			tableUpdate(msg, nodeID)
 
 def tableUpdate(msg, nodeID):
-	#print(msg)
+	
 	msgType = msg[0]
-	if msgType == "beacon":
 
+	if msgType == "beacon" and msg[8] != 'None':
+
+		#print(str(msg[8]))
+
+		unique_id = int(msg[8])
 		#identificador unico da mensagem gerada pelo no
 		msgIDrcv = msg[1]
 
@@ -112,43 +117,53 @@ def tableUpdate(msg, nodeID):
 				# valid message id
 				lock.acquire()
 				logging.debug("Acquired lock in neighbor table")
-				table_neighbor[nodeID] = [msgIDrcv, timestamp, time_gps, latitude, longitude, speed, true_course, date]
+				table_neighbor[nodeID] = [msgIDrcv, timestamp, time_gps, latitude, longitude, speed, true_course, date, unique_id]
 				logging.debug("Updated node ID record")
 				lock.release()
 				logging.debug("Released lock in neighbor table")
 				#print("Updated list: " + str(table_neighbor))
 
-			#else:
-				#print("Invalid message ID")
 		else:
 			logging.debug("Node ID not in table")
 			# else we need to add it to the table
 
-
 			lock.acquire()
 			logging.debug("Acquired lock in neighbor table")
 			flag = 1
-			table_neighbor[nodeID] = [msgIDrcv, timestamp, time_gps, latitude, longitude, speed, true_course, date]
+			table_neighbor[nodeID] = [msgIDrcv, timestamp, time_gps, latitude, longitude, speed, true_course, date, unique_id]
 			logging.debug("Added node ID record")
 			lock.release()
 			logging.debug("Released lock in neighbor table")
 			#print("Updated list: " + str(table_neighbor))
 
-
-	elif msgType == "den":
-		print("Message received: " + str(msg))
+	elif msgType == "den" and msg[-1] != 'None' and nodeID in table_neighbor.keys():
+		#print("Message received: " + str(msg))
 		unique_id = int(msg[-1])
 		if DEVICE_TYPE != unique_id:
 			if DEVICE_TYPE > 20: # sou um carro
-				if unique_id < 11: # RECEBI DE UM SEMÁFORO
-					#verificar se é o semáforo mais perto de mim
-					#se for...
-					global color
-					color = msg[1]
-			else: #sou um semáforo
-				if unique_id > 20: # recebi de um semáforo
-					#contar número de carros
-					print("coiso")
+				if unique_id < 11: # recebi de um semaforo
+					#verificar se e o semaforo mais perto de mim 
+					light_id = getNearestTrafficLight(DEVICE_TYPE)
+					print("Unique id: " + str(unique_id) + " | Light id: " + str(light_id))
+					if unique_id==light_id:
+						global color
+						color = msg[1]
+						#TO DO: carro deve ser controlado por esse semáforo
+
+			elif DEVICE_TYPE < 11: #sou um semáforo
+				if unique_id > 20: # recebi de um carro
+					#TO DO:contar número de carros
+					print("Contar carros")
+				elif unique_id < 11: #recebi de um semaforo
+
+					num_cars = int(msg[2])
+					#TO DO:transmitir entre semaforos o numero de carros
+
+				else:
+					print("outro tipo de dispositivo")
+
+			else:
+				print("outro tipo de dispositivo")
 
 class Timer(threading.Thread):
 	def __init__(self):
@@ -163,13 +178,10 @@ class Timer(threading.Thread):
 			for key in table_neighbor.keys():
 				logging.debug("Key timeout analysis: " + str(table_neighbor[key][1]))
 				if table_neighbor[key][1] < time.time()-5.0:
-					#print("Node ID timeout detected! Data that will be deleted:")
-					#print(str(table_neighbor[key]))
+
 					lock.acquire()
 					del table_neighbor[key]
 					lock.release()
-					#print("Neighbor table after delete:")
-					#print(table_neighbor)
 
 
 class sendInfo(threading.Thread):
@@ -198,7 +210,6 @@ class sendInfo(threading.Thread):
 					msgID = msgID + 1
 					logging.debug("Message with GPS data sent")
 					
-					#print("Message sent: " + finalMsg)
 					logging.debug("Awaiting next GPS data")
 					time.sleep(1)
 			else:
@@ -220,8 +231,9 @@ class sendLight(threading.Thread):
 
 	def run(self):
 		global msgID
-		finalMsg = str("den")+"|"+str(self.light_color)+"|"+str(DEVICE_TYPE)
-		#print("\nMensagem a ser enviada: " + finalMsg + "\n")
+		global num_cars
+		finalMsg = str("den") + "|" + str(self.light_color) + "|" + str(num_cars) + "|" + str(DEVICE_TYPE)
+
 		lock_msg.acquire()
 		sockets.sendMessage(finalMsg, sndSocket)
 		lock_msg.release()
@@ -255,4 +267,31 @@ def openConfigFile(file_name):
 
 	return device_list
 
-#def getCars():
+def getNearestTrafficLight(car_id):  #semaforo mais perto consoante direcao
+	
+	car_coordinate = []
+
+	for key_device in table_neighbor:
+		device = table_neighbor[key_device]
+		if int(device[-1]) == car_id:   #[-2]?? id?
+			car_coordinate = [int(device[3]),int(device[4])]
+
+			break
+
+	min_distance_id = 0
+	min_distance = 100000000 #max int
+	new_distance = 0
+	for key_device in table_neighbor:
+		device = table_neighbor[key_device]
+		print("Device ID: " + str(device[-1]))
+		if int(device[-1]) < 11:
+
+			new_distance = (int(device[4])) - car_coordinate[1]
+			print("New distance: " + str(new_distance))
+
+			if new_distance < min_distance and new_distance >= 0:
+				min_distance = new_distance
+
+				min_distance_id = device[-1]
+
+	return min_distance_id

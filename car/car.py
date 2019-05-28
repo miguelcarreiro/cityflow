@@ -19,6 +19,7 @@ UNIQUE_ID = None
 current_color =""
 
 def main():
+    global UNIQUE_ID
     if "-l" in sys.argv[1:]:
         # If test mode is activated, log will appear in terminal
         logging.basicConfig(level=logging.DEBUG)
@@ -129,7 +130,10 @@ class bs_thread(threading.Thread):
         self.gpio_data = gpio_data
 
     def run(self):
+        global UNIQUE_ID
         basic_service.DEVICE_TYPE = UNIQUE_ID
+
+
         while True:
             self.rcv_light(gpio_data)
 
